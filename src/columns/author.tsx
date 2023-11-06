@@ -1,5 +1,7 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { ColumnDef } from "@tanstack/react-table"
+import axios from "axios"
 import { EditIcon, TrashIcon } from "lucide-react"
 import { Button, buttonVariants } from "../components/ui/button"
 import { cn } from "../lib/utils"
@@ -28,7 +30,21 @@ const authorColumns: ColumnDef<Author>[] = [
     },
     {
         accessorKey: "Actions",
-        cell() {
+        cell(props) {
+            const queryClient = useQueryClient() // eslint-disable-line
+            // eslint-disable-next-line
+            const { mutate } = useMutation({
+                mutationKey: ["books", "delete", props.row.original.id],
+                mutationFn: async () => {
+                    return axios.delete(
+                        "http://localhost:5058/api/authors/" +
+                            props.row.original.id
+                    )
+                },
+                onSuccess() {
+                    queryClient.invalidateQueries({ queryKey: ["authors"] })
+                },
+            })
             return (
                 <div className="flex gap-6">
                     <Link
@@ -42,7 +58,11 @@ const authorColumns: ColumnDef<Author>[] = [
                     >
                         <EditIcon />
                     </Link>
-                    <Button variant="destructive" size="icon">
+                    <Button
+                        onClick={() => mutate()}
+                        variant="destructive"
+                        size="icon"
+                    >
                         <TrashIcon />
                     </Button>
                 </div>

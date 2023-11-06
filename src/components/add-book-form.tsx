@@ -1,6 +1,8 @@
 import * as z from "zod";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import axios from "axios"
 import { useForm } from "react-hook-form";
 import { Button } from "./ui/button";
 import {
@@ -30,6 +32,27 @@ const formSchema = z.object({
 
 export function BookForm({ editMode, initialData }: BookFormProps) {
     // ...
+    const queryClient = useQueryClient()
+    const { mutate, isPending } = useMutation({
+        mutationKey: ["books", "new"],
+        mutationFn: async (values: z.infer<typeof formSchema>) => {
+            if (editMode) {
+                return await axios.post(
+                    "http://localhost:5058/api/books",
+                    values
+                )
+            } else {
+                return await axios.put(
+                    "http://localhost:5058/api/books/" +
+                        (initialData as Book).id,
+                    values
+                )
+            }
+        },
+        onSuccess() {
+            queryClient.invalidateQueries({ queryKey: ["books"] })
+        },
+    })
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
@@ -38,16 +61,15 @@ export function BookForm({ editMode, initialData }: BookFormProps) {
     })
 
     // 2. Define a submit handler.
-    function onSubmit(values: z.infer<typeof formSchema>) {
-        if (editMode) {
-            return values
-        } else {
-            return values
-        }
+    async function onSubmit(values: z.infer<typeof formSchema>) {
+        await mutate(values)
     }
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 w-full mr-8 pt-8">
+            <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-8 w-full mr-8 pt-8"
+            >
                 <FormField
                     control={form.control}
                     name="title"
@@ -118,7 +140,10 @@ export function BookForm({ editMode, initialData }: BookFormProps) {
                         </FormItem>
                     )}
                 />
-                <Button type="submit">Submit</Button>
+                <Button type="submit">
+                    {isPending && "Submitting..."}
+                    {!isPending && "Submit"}
+                </Button>
             </form>
         </Form>
     )
